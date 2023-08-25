@@ -1,0 +1,279 @@
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="initial-scale=1,maximum-scale=1,user-scalable=no"
+		/>
+		<title>Custom popup chart colors</title>
+
+		<style>
+			html,
+			body,
+			#viewDiv {
+				padding: 0;
+				margin: 0;
+				height: 100%;
+				width: 100%;
+			}
+		</style>
+
+		<link
+			rel="stylesheet"
+			href="https://js.arcgis.com/next/esri/themes/light/main.css"
+		/>
+
+		<script
+			type="module"
+			src="https://js.arcgis.com/calcite-components/1.5.1/calcite.esm.js"
+		></script>
+		<link
+			rel="stylesheet"
+			type="text/css"
+			href="https://js.arcgis.com/calcite-components/1.5.1/calcite.css"
+		/>
+
+		<script src="https://js.arcgis.com/next/"></script>
+
+		<script>
+			require([
+				"esri/views/MapView",
+				"esri/WebMap",
+				"esri/config",
+				"esri/widgets/Legend",
+				"esri/widgets/Expand",
+			], (MapView, WebMap, esriConfig, Legend, Expand) => {
+				(async () => {
+					let portalItemUrl = "";
+					const list = document.getElementById("list");
+					const colorPicker = document.createElement("calcite-color-picker");
+					colorPicker.allowEmpty = true;
+					colorPicker.hexDisabled = true;
+					colorPicker.format = "rgb";
+					colorPicker.disabled = true;
+					colorPicker.addEventListener(
+						"calciteColorPickerChange",
+						colorPickerChange
+					);
+
+					// Get the URL parameters and parse them.
+					function getUrlParams() {
+						const queryParams = document.location.search.substr(1);
+						let result = {};
+
+						queryParams.split("&").forEach(function (part) {
+							var item = part.split("=");
+							result[item[0]] = decodeURIComponent(item[1]);
+						});
+						return result;
+					}
+
+					// Function to set an id as a URL param.
+					function setUrlParams(id, portal) {
+						window.history.pushState(
+							"",
+							"",
+							`${window.location.pathname}?id=${id}&portal=${portal}`
+						);
+					}
+
+					// Function to create a webmap from the URL parameters.
+					async function createWebmap() {
+						let { id, portal, url } = getUrlParams();
+
+						if (!url) {
+							if (!id) {
+								id = "1939be09bd064e319c60897d2ba29a28";
+							}
+
+							if (!portal) {
+								portal = "https://www.arcgis.com/";
+							}
+
+							setUrlParams(id, portal);
+							//esriConfig.portal = portal;
+						} else {
+							portal = null;
+							id = null;
+						}
+						return new WebMap({
+							portalItem: {
+								id: id,
+								portal: portal,
+							},
+						});
+					}
+
+					const webmap = await createWebmap();
+
+					// Add the webmap to the view and doc the popup.
+					const view = new MapView({
+						map: webmap,
+						container: "viewDiv",
+						popup: {
+							dockEnabled: true,
+							dockOptions: {
+								position: "top-right",
+								breakpoint: false,
+							},
+						},
+					});
+
+					// Add a Legend and Instructions.
+					view.when(() => {
+						const colorPickerExpand = new Expand({
+							view,
+							content: colorPicker,
+							expandIcon: "palette",
+							id: "color-picker",
+						});
+						view.ui.add(
+							new Expand({
+								view,
+								content: new Legend({ view }),
+								expanded: false,
+							}),
+							"top-left"
+						);
+						view.ui.add(colorPickerExpand, "bottom-left");
+						const instructionsExpand = new Expand({
+							expandIcon: "question",
+							expandTooltip: "How to use this sample",
+							view: view,
+							content: `
+        <div style='width:200px; padding:10px; background-color:white'>Use the <b>URL parameters</b> to load a web map from <b>ArcGIS Online (production, devext, or qaext)</b> or <b>ArcGIS Enterprise</b>. 
+            <br>Include "https://" in the portal URL and if working with ArcGIS Enterprise, the web adaptor needs to be included in the URL.</div>
+        `,
+						});
+						view.ui.add(instructionsExpand, "top-left");
+						webmap.layers.forEach(async (layer) => {
+							if (layer.type === "group") {
+								await layer.load();
+								console.log(layer.layers);
+								layer.layers.forEach((childLayer) => {
+									buildList(childLayer);
+								});
+							} else {
+								buildList(layer);
+							}
+						});
+					});
+
+					async function buildList(layer) {
+						if (layer.popupTemplate) {
+							layer.popupTemplate.content.forEach((content) => {
+								if (content.type === "media") {
+									content.mediaInfos.forEach((mediaInfo, mediaIndex) => {
+										const chart = document.createElement(
+											"calcite-list-item-group"
+										);
+										chart.heading = mediaInfo.title;
+										list.appendChild(chart);
+
+										const fields = mediaInfo.value.fields;
+										mediaInfo.value.colors = [];
+										mediaInfo.value.colors.length =
+											mediaInfo.value.fields.length;
+
+										fields.forEach((field, index) => {
+											const item = document.createElement("calcite-list-item");
+											item.label = field;
+											item.addEventListener(
+												"calciteListItemSelect",
+												listItemChanged
+											);
+											let colorDiv = document.createElement("div");
+											colorDiv.slot = "content-end";
+											colorDiv.id = `color-box-${mediaIndex}-${index}`;
+											colorDiv.style =
+												"width: 20px; height: 20px; padding: 5px;";
+											item.appendChild(colorDiv);
+											chart.appendChild(item);
+										});
+									});
+								}
+							});
+						}
+					}
+					let label;
+					let listItem;
+					function listItemChanged(event) {
+						console.log(event.target.label);
+						if (!view.ui.find("color-picker").expanded) {
+							view.ui.find("color-picker").expanded = true;
+						}
+						event.target.selected = true;
+						label = event.target.label;
+						listItem = event.target;
+						colorPicker.disabled = false;
+					}
+
+					function colorPickerChange() {
+						if (label) {
+							view.map.layers.forEach(async (layer) => {
+								await layer.load();
+								if (layer.type === "group") {
+									layer.layers.forEach((childLayer) => {
+										updateColors(childLayer);
+									});
+								} else {
+									updateColors(layer);
+								}
+							});
+						}
+					}
+
+					function updateColors(layer) {
+						if (layer.popupTemplate) {
+							layer.popupTemplate.content.forEach((content) => {
+								content.mediaInfos.forEach((mediaInfo, index) => {
+									if (
+										mediaInfo.value.fields.includes(label) &&
+										listItem.parentNode.heading === mediaInfo.title
+									) {
+										mediaInfo.value.colors[
+											mediaInfo.value.fields.indexOf(label)
+										] = Object.values(colorPicker.value);
+										let colors = Object.values(colorPicker.value);
+										let colorString = "rgb(";
+										colors.forEach((color) => {
+											colorString += color + ",";
+										});
+										colorString =
+											colorString.substring(0, colorString.length - 1) + ")";
+										console.log(colorString);
+										document.getElementById(
+											`color-box-${index}-${mediaInfo.value.fields.indexOf(
+												label
+											)}`
+										).style.backgroundColor = colorString;
+									}
+								});
+							});
+						}
+					}
+				})();
+			});
+		</script>
+	</head>
+
+	<body>
+		<calcite-shell>
+			<calcite-shell-panel
+				slot="panel-start"
+				position="start"
+				width-scale="m"
+				calcite-shell-panel-min-width="400px"
+			>
+				<calcite-panel
+					id="panel"
+					heading="Change popup chart colors"
+					description="Pre-configured charts are grouped below by individual mediaInfo values. All fields configured in each chart are listed under each group. Select a field and choose a color from the color picker to update the color for that field within the chart."
+				>
+					<calcite-list id="list"> </calcite-list>
+				</calcite-panel>
+			</calcite-shell-panel>
+			<div id="viewDiv"></div>
+		</calcite-shell>
+	</body>
+</html>
