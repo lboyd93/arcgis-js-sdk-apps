@@ -1,0 +1,139 @@
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="initial-scale=1,maximum-scale=1,user-scalable=no"
+		/>
+		<title>Popup features order</title>
+
+		<style>
+			html,
+			body,
+			#viewDiv {
+				padding: 0;
+				margin: 0;
+				height: 100%;
+				width: 100%;
+			}
+		</style>
+
+		<link
+			rel="stylesheet"
+			href="https://js.arcgis.com/next/esri/themes/light/main.css"
+		/>
+
+		<script
+			type="module"
+			src="https://js.arcgis.com/calcite-components/2.1.0/calcite.esm.js"
+		></script>
+		<link
+			rel="stylesheet"
+			type="text/css"
+			href="https://js.arcgis.com/calcite-components/2.1.0/calcite.css"
+		/>
+
+		<script src="https://js.arcgis.com/next/"></script>
+
+		<script>
+			require([
+				"esri/views/MapView",
+				"esri/WebMap",
+				"esri/config",
+				"esri/widgets/Legend",
+				"esri/widgets/Expand",
+			], (MapView, WebMap, esriConfig, Legend, Expand) => {
+				(async () => {
+					let portalItemUrl = "";
+
+					// Get the URL parameters and parse them.
+					function getUrlParams() {
+						const queryParams = document.location.search.substr(1);
+						console.log(queryParams);
+						let result = {};
+
+						queryParams.split("&").forEach(function (part) {
+							var item = part.split("=");
+							result[item[0]] = decodeURIComponent(item[1]);
+							console.log(item);
+						});
+						return result;
+					}
+
+					// Function to set an id as a URL param.
+					function setUrlParams(id, portal) {
+						window.history.pushState(
+							"",
+							"",
+							`${window.location.pathname}?id=${id}&portal=${portal}`
+						);
+					}
+
+					// Function to create a webmap from the URL parameters.
+					async function createWebmap() {
+						let { id, portal, url } = getUrlParams();
+
+						if (!url) {
+							if (!id) {
+								id = "ec5edbd9ddb54fecab0086030600b319";
+							}
+
+							if (!portal) {
+								portal = "https://www.arcgis.com/";
+							}
+
+							setUrlParams(id, portal);
+							//esriConfig.portal = portal;
+						} else {
+							portal = null;
+							id = null;
+						}
+						return new WebMap({
+							portalItem: {
+								id: id,
+								portal: portal,
+							},
+						});
+					}
+
+					const webmap = await createWebmap();
+
+					// Add the webmap to the view and doc the popup.
+					const view = new MapView({
+						map: webmap,
+						container: "viewDiv",
+						popup: {
+							dockEnabled: true,
+							dockOptions: {
+								position: "top-right",
+								breakpoint: false,
+							},
+						},
+					});
+
+					// Add a Legend and Instructions.
+					view.when(() => {
+						view.ui.add(
+							new Expand({ view, content: new Legend({ view }) }),
+							"bottom-left"
+						);
+						const instructionsExpand = new Expand({
+							expandIcon: "question",
+							expandTooltip: "How to use this sample",
+							view: view,
+							content: `
+        <div style='width:200px; padding:10px; background-color:white'>Use the <b>URL parameters</b> to load a web map from <b>ArcGIS Online (production, devext, or qaext)</b> or <b>ArcGIS Enterprise</b>. 
+            <br>Include "https://" in the portal URL and if working with ArcGIS Enterprise, the web adaptor needs to be included in the URL.</div>
+        `,
+						});
+						view.ui.add(instructionsExpand, "top-left");
+					});
+				})();
+			});
+		</script>
+	</head>
+
+	<body>
+		<div id="viewDiv"></div>
+	</body>
+</html>
