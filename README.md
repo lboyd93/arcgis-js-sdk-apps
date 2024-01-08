@@ -21,3 +21,10 @@ The [popup-feature-order](https://lboyd93.github.io/arcgis-js-sdk-apps/popup-fea
 
 Example of how to specify a webmap and a portal:
 https://lboyd93.github.io/arcgis-js-sdk-apps/popup-feature-order.html?id=ec5edbd9ddb54fecab0086030600b319&portal=https://www.arcgis.com/
+
+### Compare Popup same location
+
+The [compare-popup-same-location](https://lboyd93.github.io/arcgis-js-sdk-apps/compare-popup-same-location/index.html) application loads a web map from a specified portal based on the URL parameters for two different versions of the API. By default, it loads a [web map](https://jsapi.maps.arcgis.com/home/item.html?id=ec5edbd9ddb54fecab0086030600b319) with multiple layers configured for testing the order the features display in the popup.
+
+Example of how to specify a webmap and portal:
+https://lboyd93.github.io/arcgis-js-sdk-apps/compare-popup-same-location/index.html?id=ec5edbd9ddb54fecab0086030600b319&portal=https://www.arcgis.com/
