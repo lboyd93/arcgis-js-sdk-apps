@@ -1,8 +1,10 @@
-require(["esri/core/reactiveUtils", "esri/views/MapView", "esri/WebMap"], (
-	reactiveUtils,
-	MapView,
-	WebMap
-) => {
+require([
+	"esri/core/reactiveUtils",
+	"esri/views/MapView",
+	"esri/WebMap",
+	"esri/widgets/Legend",
+	"esri/widgets/Expand",
+], (reactiveUtils, MapView, WebMap, Legend, Expand) => {
 	// Function to create a webmap from the URL parameters.
 	function createWebmap() {
 		let { id, portal, url } = getUrlParams();
@@ -36,21 +38,14 @@ require(["esri/core/reactiveUtils", "esri/views/MapView", "esri/WebMap"], (
 		map: webmap,
 		popup: {
 			defaultPopupTemplateEnabled: true,
+			autoCloseEnabled: true,
 		},
 		popupEnabled: false,
 	});
 
-	//reactiveUtils.on(view, "click", (event) => {});
+	view.ui.add(new Expand({ content: new Legend({ view }) }), "bottom-left");
 
-	view.on("click", (event) => {
-		window.parent.postMessage(
-			{
-				type: "hit-location",
-				screenPoint: { x: event.x, y: event.y },
-			},
-			"*"
-		);
-	});
+	//reactiveUtils.on(view, "click", (event) => {});
 
 	view.when(() => {
 		reactiveUtils.when(
@@ -74,6 +69,29 @@ require(["esri/core/reactiveUtils", "esri/views/MapView", "esri/WebMap"], (
 				);
 			}
 		);
+
+		view.on("click", (event) => {
+			window.parent.postMessage(
+				{
+					type: "hit-location",
+					screenPoint: { x: event.x, y: event.y },
+				},
+				"*"
+			);
+		});
+
+		// reactiveUtils.watch(
+		// 	() => view.popup.visible,
+		// 	(visible) => {
+		// 		window.parent.postMessage(
+		// 			{
+		// 				type: "popup-close",
+		// 				visible: visible,
+		// 			},
+		// 			"*"
+		// 		);
+		// 	}
+		// );
 	});
 	const messageHandler = async (ev) => {
 		switch (ev?.data?.type) {
