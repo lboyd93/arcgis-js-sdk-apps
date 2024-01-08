@@ -44,6 +44,17 @@ require([
 	});
 
 	view.ui.add(new Expand({ content: new Legend({ view }) }), "bottom-left");
+	const instructionsExpand = new Expand({
+		expandIcon: "question",
+		expandTooltip: "How to use this sample",
+		view: view,
+		expanded: true,
+		content: `
+<div style='width:200px; padding:10px; background-color:white'>Use the <b>URL parameters</b> to load a web map from <b>ArcGIS Online (production, devext, or qaext)</b> or <b>ArcGIS Enterprise</b>. 
+<br>Include "https://" in the portal URL and if working with ArcGIS Enterprise, the web adaptor needs to be included in the URL.</div>
+`,
+	});
+	view.ui.add(instructionsExpand, "top-left");
 
 	//reactiveUtils.on(view, "click", (event) => {});
 
