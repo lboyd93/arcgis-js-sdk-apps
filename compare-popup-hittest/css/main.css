@@ -1,0 +1,22 @@
+html,
+body,
+#viewDiv {
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	width: 100%;
+}
+.title {
+	position: absolute;
+	top: 1em;
+	right: 1em;
+	margin: 0;
+	background: #ffffff;
+	padding: 5px;
+}
+
+#hittest-info {
+	height: 100%;
+	width: 300px;
+	padding: 10px;
+}
