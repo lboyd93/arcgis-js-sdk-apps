@@ -1,0 +1,355 @@
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+		<meta
+			name="viewport"
+			content="initial-scale=1,maximum-scale=1,user-scalable=no"
+		/>
+		<title>HitTest feature order custom branch</title>
+
+		<script
+			type="module"
+			src="https://js.arcgis.com/calcite-components/2.2.0/calcite.esm.js"
+		></script>
+		<link
+			rel="stylesheet"
+			type="text/css"
+			href="https://js.arcgis.com/calcite-components/2.2.0/calcite.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://jsapi.esri.com/testbuilds/sam11948-hittest-order/buildOutput/esri/themes/light/main.css"
+		/>
+		<script src="https://jsapi.esri.com/testbuilds/sam11948-hittest-order/buildOutput/"></script>
+		<link rel="stylesheet" type="text/css" href="./css/main.css" />
+	</head>
+
+	<body>
+		<div id="viewDiv"></div>
+		<p class="title">4.29</p>
+		<div id="viewDiv"></div>
+		<calcite-panel id="inputs">
+			<calcite-label
+				>Mobile Tolerance (px):
+				<calcite-input-number
+					id="mobileTolerance"
+					placeholder="Enter mobile tolerance"
+					step="0.5"
+					min="0"
+					value="3"
+				>
+				</calcite-input-number>
+			</calcite-label>
+			<calcite-label
+				>Desktop Tolerance (px):
+				<calcite-input-number
+					id="desktopTolerance"
+					placeholder="Enter desktop tolerance"
+					step="0.5"
+					min="0"
+					value="1"
+				>
+				</calcite-input-number>
+			</calcite-label>
+			<calcite-label>
+				<span
+					>Small Symbol Tolerance (px):
+					<calcite-icon
+						id="smallSymbolToleranceInfo"
+						icon="question"
+						text-label="small symbol info"
+					></calcite-icon>
+					<calcite-tooltip
+						label="small symbol info"
+						reference-element="smallSymbolToleranceInfo"
+					>
+						<span
+							>On desktop, lines and markers smaller than the threshold (below)
+							will use this tolerance instead.</span
+						>
+					</calcite-tooltip>
+				</span>
+				<calcite-input-number
+					id="smallSymbolTolerance"
+					placeholder="Enter small symbol tolerance"
+					step="0.5"
+					min="0"
+					value="3"
+				>
+				</calcite-input-number>
+			</calcite-label>
+			<calcite-label>
+				<span
+					>Small Symbol Size Threshold (px):
+					<calcite-icon
+						id="smallSymbolThresholdInfo"
+						icon="question"
+						text-label="small symbol info"
+					></calcite-icon>
+					<calcite-tooltip
+						label="small symbol info"
+						reference-element="smallSymbolThresholdInfo"
+					>
+						<span
+							>On desktop, lines and markers smaller than this threshold will
+							use the "small symbol tolerance" (above) instead.</span
+						>
+					</calcite-tooltip>
+				</span>
+				<calcite-input-number
+					id="smallSymbolThreshold"
+					placeholder="Enter small symbol threshold"
+					step="0.5"
+					min="0"
+					value="3"
+				>
+				</calcite-input-number>
+			</calcite-label>
+			<calcite-label layout="inline"
+				>Hover Enabled:
+				<calcite-checkbox id="hoverEnabled"></calcite-checkbox>
+			</calcite-label>
+		</calcite-panel>
+		<script type="text/javascript">
+			require([
+				"esri/core/reactiveUtils",
+				"esri/views/MapView",
+				"esri/WebMap",
+				"esri/widgets/Legend",
+				"esri/widgets/Expand",
+			], (reactiveUtils, MapView, WebMap, Legend, Expand) => {
+				const hitTestInfo = document.getElementById("hittest-info");
+				const hitTestFeaturesLabel =
+					document.getElementById("features-returned");
+
+				const hoverEnabledEl = document.getElementById("hoverEnabled");
+				const mobileToleranceEl = document.getElementById("mobileTolerance");
+				const desktopToleranceEl = document.getElementById("desktopTolerance");
+				const smallSymbolToleranceEl = document.getElementById(
+					"smallSymbolTolerance"
+				);
+				const smallSymbolThresholdEl = document.getElementById(
+					"smallSymbolThreshold"
+				);
+
+				mobileToleranceEl.addEventListener(
+					"calciteInputNumberChange",
+					setTolerances
+				);
+				desktopToleranceEl.addEventListener(
+					"calciteInputNumberChange",
+					setTolerances
+				);
+				smallSymbolToleranceEl.addEventListener(
+					"calciteInputNumberChange",
+					setTolerances
+				);
+				smallSymbolThresholdEl.addEventListener(
+					"calciteInputNumberChange",
+					setTolerances
+				);
+
+				function setTolerances() {
+					has.add(
+						"hittest-2d-mobile-tolerance",
+						parseNum(mobileToleranceEl.value, 3),
+						true,
+						true
+					);
+					has.add(
+						"hittest-2d-desktop-tolerance",
+						parseNum(desktopToleranceEl.value, 1),
+						true,
+						true
+					);
+					has.add(
+						"hittest-2d-small-symbol-tolerance",
+						parseNum(smallSymbolToleranceEl.value, 3),
+						true,
+						true
+					);
+					has.add(
+						"hittest-2d-small-symbol-tolerance-threshold",
+						parseNum(smallSymbolThresholdEl.value, 3),
+						true,
+						true
+					);
+				}
+				// Function to create a webmap from the URL parameters.
+				function createWebmap() {
+					let { id, portal, url } = getUrlParams();
+
+					if (!url) {
+						if (!id) {
+							id = "aa156e084cf84970a17fa0f0c5f34879";
+						}
+
+						if (!portal) {
+							portal = "https://www.arcgis.com/";
+						}
+
+						setUrlParams(id, portal);
+						//esriConfig.portal = portal;
+					} else {
+						portal = null;
+						id = null;
+					}
+					return new WebMap({
+						portalItem: {
+							id: id,
+							portal: portal,
+						},
+					});
+				}
+				const webmap = createWebmap();
+
+				const view = new MapView({
+					container: "viewDiv",
+					map: webmap,
+					popup: {
+						defaultPopupTemplateEnabled: true,
+						autoCloseEnabled: true,
+						dockEnabled: true,
+						dockOptions: {
+							position: "bottom-right",
+							breakpoint: false,
+						},
+					},
+					popupEnabled: false,
+				});
+
+				//view.ui.add(hitTestInfo, "bottom-left");
+				view.ui.add(
+					new Expand({ content: new Legend({ view }) }),
+					"bottom-left"
+				);
+				const instructionsExpand = new Expand({
+					expandIcon: "question",
+					expandTooltip: "How to use this sample",
+					view: view,
+					expanded: false,
+					content: `
+				<div style='width:200px; padding:10px; background-color:white'>Use the <b>URL parameters</b> to load a web map from <b>ArcGIS Online (production, devext, or qaext)</b> or <b>ArcGIS Enterprise</b>.
+				<br>Include "https://" in the portal URL and if working with ArcGIS Enterprise, the web adaptor needs to be included in the URL.</div>
+				`,
+				});
+				view.ui.add(instructionsExpand, "top-left");
+
+				const inputsExpand = new Expand({
+					expandIcon: "gear",
+					expandTooltip: "Update inputs",
+					view,
+					content: document.getElementById("inputs"),
+				});
+				view.ui.add(inputsExpand, "top-left");
+
+				//reactiveUtils.on(view, "click", (event) => {});
+
+				view.when(async () => {
+					webmap.load();
+					webmap.layers.forEach((layer) => {
+						layer.outFields = ["*"];
+					});
+					reactiveUtils.when(
+						() => !view?.navigating,
+						() => {
+							let extent = {
+								xmin: view.extent.xmin,
+								xmax: view.extent.xmax,
+								ymin: view.extent.ymin,
+								ymax: view.extent.ymax,
+								spatialReference: {
+									wkid: view.extent.spatialReference.wkid,
+								},
+							};
+							window.parent.postMessage(
+								{
+									type: "view-navigation",
+									extent: extent,
+								},
+								"*"
+							);
+						}
+					);
+
+					view.on("click", (event) => {
+						window.parent.postMessage(
+							{
+								type: "hit-location",
+								screenPoint: { x: event.x, y: event.y },
+							},
+							"*"
+						);
+					});
+				});
+				const messageHandler = async (ev) => {
+					switch (ev?.data?.type) {
+						case "hit-location":
+							const screenPoint = ev?.data?.screenPoint;
+							const mapPoint = view.toMap(screenPoint);
+							let graphics = [];
+							view.hitTest(screenPoint).then((response) => {
+								const hits = response.results.filter(
+									(hit) =>
+										hit.type === "graphic" && hit.layer.type === "feature"
+								);
+								hits.forEach((hit) => {
+									console.log(
+										"HitTest order: ",
+										hit.graphic.attributes.Overlapping
+									);
+									graphics.push(hit.graphic);
+								});
+
+								view.openPopup({
+									location: mapPoint,
+									features: graphics,
+									//fetchFeatures: true,
+									featureMenuOpen: true,
+								});
+							});
+
+							ev.stopPropagation();
+							break;
+						case "view-navigation":
+							view.extent = ev?.data?.extent;
+							// await view.goTo({
+							// 	extent: ev?.data?.extent,
+							// });
+							ev.stopPropagation();
+							break;
+					}
+				};
+
+				window.parent.addEventListener("message", messageHandler);
+
+				view.addHandles({
+					remove: () =>
+						window.parent.removeEventListener("message", messageHandler),
+				});
+
+				// Get the URL parameters and parse them.
+				function getUrlParams() {
+					const queryParams = document.location.search.substr(1);
+					let result = {};
+
+					queryParams.split("&").forEach(function (part) {
+						var item = part.split("=");
+						result[item[0]] = decodeURIComponent(item[1]);
+					});
+					return result;
+				}
+
+				// Function to set an id as a URL param.
+				function setUrlParams(id, portal) {
+					window.history.pushState(
+						"",
+						"",
+						`${window.location.pathname}?id=${id}&portal=${portal}`
+					);
+				}
+			});
+		</script>
+	</body>
+</html>

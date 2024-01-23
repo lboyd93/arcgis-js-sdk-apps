@@ -1,0 +1,186 @@
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+	<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+	<title>Popup feature order production</title>
+
+	<script type="module" src="https://js.arcgis.com/calcite-components/2.2.0/calcite.esm.js"></script>
+	<link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/2.2.0/calcite.css" />
+	<link rel="stylesheet" href="https://jsdev.arcgis.com/4.28/esri/themes/light/main.css" />
+	<script src="https://jsdev.arcgis.com/4.28/"></script>
+	<link rel="stylesheet" type="text/css" href="./css/main.css" />
+</head>
+
+<body>
+	<div id="viewDiv"></div>
+	<p class="title">4.28</p>
+	</div>
+	<script type="text/javascript">
+		require([
+			"esri/core/reactiveUtils",
+			"esri/views/MapView",
+			"esri/WebMap",
+			"esri/widgets/Legend",
+			"esri/widgets/Expand",
+		], (reactiveUtils, MapView, WebMap, Legend, Expand) => {
+			const hitTestInfo = document.getElementById("hittest-info");
+			const hitTestFeaturesLabel = document.getElementById("features-returned");
+			// Function to create a webmap from the URL parameters.
+			function createWebmap() {
+				let { id, portal, url } = getUrlParams();
+
+				if (!url) {
+					if (!id) {
+						id = "aa156e084cf84970a17fa0f0c5f34879";
+					}
+
+					if (!portal) {
+						portal = "https://www.arcgis.com/";
+					}
+
+					setUrlParams(id, portal);
+					//esriConfig.portal = portal;
+				} else {
+					portal = null;
+					id = null;
+				}
+				return new WebMap({
+					portalItem: {
+						id: id,
+						portal: portal,
+					},
+				});
+			}
+			const webmap = createWebmap();
+
+			const view = new MapView({
+				container: "viewDiv",
+				map: webmap,
+				popup: {
+					defaultPopupTemplateEnabled: true,
+					autoCloseEnabled: true,
+					dockEnabled: true,
+					dockOptions: {
+						position: "bottom-right",
+						breakpoint: false,
+					},
+				},
+				popupEnabled: false,
+			});
+
+			//view.ui.add(hitTestInfo, "top-right");
+			view.ui.add(new Expand({ content: new Legend({ view }) }), "bottom-left");
+			const instructionsExpand = new Expand({
+				expandIcon: "question",
+				expandTooltip: "How to use this sample",
+				view: view,
+				expanded: false,
+				content: `
+<div style='width:200px; padding:10px; background-color:white'>Use the <b>URL parameters</b> to load a web map from <b>ArcGIS Online (production, devext, or qaext)</b> or <b>ArcGIS Enterprise</b>. 
+<br>Include "https://" in the portal URL and if working with ArcGIS Enterprise, the web adaptor needs to be included in the URL.</div>
+`,
+			});
+			view.ui.add(instructionsExpand, "top-left");
+
+			view.when(() => {
+				reactiveUtils.when(
+					() => !view?.navigating,
+					() => {
+						let extent = {
+							xmin: view.extent.xmin,
+							xmax: view.extent.xmax,
+							ymin: view.extent.ymin,
+							ymax: view.extent.ymax,
+							spatialReference: {
+								wkid: view.extent.spatialReference.wkid,
+							},
+						};
+						window.parent.postMessage(
+							{
+								type: "view-navigation",
+								extent: extent,
+							},
+							"*"
+						);
+					}
+				);
+
+				view.on("click", (event) => {
+					window.parent.postMessage(
+						{
+							type: "hit-location",
+							screenPoint: { x: event.x, y: event.y },
+						},
+						"*"
+					);
+				});
+			});
+			const messageHandler = async (ev) => {
+				switch (ev?.data?.type) {
+					case "hit-location":
+						const screenPoint = ev?.data?.screenPoint;
+						const mapPoint = view.toMap(screenPoint);
+						let graphics = [];
+						view.hitTest(screenPoint).then((response) => {
+							const hits = response.results.filter(
+								(hit) => hit.type === "graphic" && hit.layer.type === "feature"
+							);
+
+							hits.forEach((hit) => {
+								console.log(hit);
+								graphics.push(hit.graphic);
+							});
+							view.openPopup({
+								location: mapPoint,
+								//fetchFeatures: true,
+								features: graphics,
+								featureMenuOpen: true,
+							});
+						});
+
+						ev.stopPropagation();
+						break;
+					case "view-navigation":
+						view.extent = ev?.data?.extent;
+						// await view.goTo({
+						// 	extent: ev?.data?.extent,
+						// });
+						ev.stopPropagation();
+						break;
+				}
+			};
+
+			window.parent.addEventListener("message", messageHandler);
+
+			view.addHandles({
+				remove: () => window.parent.removeEventListener("message", messageHandler),
+			});
+
+			// Get the URL parameters and parse them.
+			function getUrlParams() {
+				const queryParams = document.location.search.substr(1);
+				let result = {};
+
+				queryParams.split("&").forEach(function (part) {
+					var item = part.split("=");
+					result[item[0]] = decodeURIComponent(item[1]);
+				});
+				return result;
+			}
+
+			// Function to set an id as a URL param.
+			function setUrlParams(id, portal) {
+				window.history.pushState(
+					"",
+					"",
+					`${window.location.pathname}?id=${id}&portal=${portal}`
+				);
+			}
+		});
+
+	</script>
+</body>
+
+</html>

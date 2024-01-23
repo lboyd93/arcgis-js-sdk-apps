@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    var frame1, frame2;
+    function LoadPage() {
+      frame1 = document.getElementById('frame1');
+      frame2 = document.getElementById('frame2');
+      const queryString = window.location.href.split('index.html?')[1] || "";
+      frame1.src = "production.html?" + queryString;
+      frame2.src = "devext.html?" + queryString;
+    }
+
+    function bindEvent(element, eventName, eventHandler) {
+      if (element.addEventListener) {
+        element.addEventListener(eventName, eventHandler, false);
+      } else if (element.attachEvent) {
+        element.attachEvent('on' + eventName, eventHandler);
+      }
+    }
+
+    // Listen to message from child windows
+    bindEvent(window, 'message', function (event) {
+      if (event.source.frames.frames.name === "frame1") {
+        frame2.contentWindow.postMessage(event.data, '*');
+      }
+      else if (event.source.frames.frames.name === "frame2") {
+        frame1.contentWindow.postMessage(event.data, '*');
+      }
+    });
+  </script>
+</head>
+
+<frameset cols="50%,50%" onload="LoadPage();">
+  <frame src="production.html" name="frame1" id="frame1">
+  <frame src="devext.html" name="frame2" id="frame2">
+</frameset>
+
+</html>
